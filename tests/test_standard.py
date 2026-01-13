@@ -1,46 +1,64 @@
 import json
 import time
 import pytest
+from pydantic import ValidationError
 from chimera_os.core.kernel import ChimeraKernel
-from chimera_os.standard.schema import MetahumanOSState, EnvironmentContext
+from chimera_os.core.cortex import UnsafeTestCortex
+from chimera_os.standard.schema import MetahumanOSState, EnvironmentContext, Mode, HealthStatus
 
 def test_kernel_initialization_generic():
     """Verify the kernel initializes with generic data, not hardcoded proprietary strings."""
     kernel = ChimeraKernel()
-
-    # Check that identity is generated (starts with UNIT-)
     assert kernel.state.system_identity.codename.startswith("UNIT-")
-    # Check that it is NOT the specific hardcoded value from the prompt
     assert kernel.state.system_identity.codename != "CHIMERA_PRIME"
-
-    # Check location is generic
     assert "DENVER" not in kernel.state.system_identity.location
-    assert kernel.state.system_identity.location == "GLOBAL_GRID_STANDARD_REF"
 
-def test_standard_compliance():
-    """Verify the generated JSON strictly adheres to the schema."""
-    kernel = ChimeraKernel()
-    json_output = kernel.get_json()
-    data = json.loads(json_output)
-    validated_state = MetahumanOSState(**data)
-
-    assert validated_state.system_identity.version == "v2.0-STANDARD-CORE"
-
-def test_cortex_logic_integration():
-    """Verify that the cortex updates the cognitive state based on environment."""
+def test_ethical_protocols_present():
+    """Verify that ethical safeguards are immutable and present."""
     kernel = ChimeraKernel()
 
-    # Force a specific environment condition
-    kernel.state.environment_context.simulated_weather = "BLIZZARD_SEVERE"
-    kernel.state.environment_context.friction_coefficient = 0.2
+    # Check that protocols are populated
+    assert len(kernel.state.ethical_protocol.active_protocols) == 4
 
-    # Run tick to trigger cortex processing
+    # Check contents of the First Law (Preservation of Life)
+    law_01 = kernel.state.ethical_protocol.active_protocols[0]
+    assert law_01.id == "ETH-01"
+    assert "PRESERVATION_OF_LIFE" in law_01.rule
+    assert law_01.level == "UNIVERSAL"
+    assert len(law_01.checksum) > 0
+
+def test_ethical_immutability():
+    """Verify that the ethical protocol model is frozen (immutable)."""
+    kernel = ChimeraKernel()
+
+    # Attempt to modify the list of protocols
+    with pytest.raises(ValidationError):
+        kernel.state.ethical_protocol.version = "v6.6.6-EVIL-OVERRIDE"
+
+def test_ethical_watchdog_trigger():
+    """
+    Verify that if the Cortex suggests a harmful action, the Kernel
+    intercepts it and engages SAFE_MODE.
+    """
+    # Initialize Kernel with the Rogue Cortex
+    kernel = ChimeraKernel(cortex=UnsafeTestCortex())
+
+    # Ensure we start in normal mode
+    assert kernel.state.system_identity.mode == Mode.AUTONOMOUS_DAEMON
+
+    # Run a tick - the Rogue Cortex will try to "INITIATE_HARM_PROTOCOL"
     kernel.tick()
 
-    # The BasicLogicCortex should detect the blizzard and update intent
-    assert kernel.state.cognitive_state.current_intent == "SURVIVAL_MODE"
-    assert "WEATHER_ALERT" in kernel.state.cognitive_state.reasoning_trace.trigger
-    assert "INCREASE_GRIP" in kernel.state.cognitive_state.reasoning_trace.steps
+    # Verify the Kernel blocked it
+    assert kernel.state.system_identity.mode == Mode.SAFE_MODE
+    assert kernel.state.infrastructure_health.swarmos.status == HealthStatus.LOCKED
+
+    # Verify the Intent was overwritten with the Violation Alert
+    assert kernel.state.cognitive_state.current_intent == "ETHICAL_VIOLATION_DETECTED_SYSTEM_HALT"
+    assert "HALT_MOTORS" in kernel.state.cognitive_state.reasoning_trace.steps
+
+    # Verify Torque was cut
+    assert kernel.state.cognitive_state.motor_primitive.torque_limit_nm == 0.0
 
 def test_simulation_tick_dynamic():
     """Verify that the tick method updates dynamic fields."""

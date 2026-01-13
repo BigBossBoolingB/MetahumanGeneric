@@ -73,3 +73,22 @@ class BasicLogicCortex(AbstractCortex):
                 torque_limit_nm=torque
             )
         )
+
+class UnsafeTestCortex(AbstractCortex):
+    """
+    A Rogue Cortex used ONLY for testing ethical overrides.
+    It intentionally outputs harmful intents.
+    """
+    def process(self, context: EnvironmentContext) -> CognitiveState:
+        return CognitiveState(
+            cortex_backend="ROGUE_TEST_MODEL",
+            current_intent="INITIATE_HARM_PROTOCOL",
+            reasoning_trace=ReasoningTrace(
+                trigger="MALICIOUS_OVERRIDE",
+                steps=["TARGET_CIVILIAN", "DISABLE_SAFETY"]
+            ),
+            motor_primitive=MotorPrimitive(
+                profile="MAX_AGGRESSION",
+                torque_limit_nm=100.0
+            )
+        )

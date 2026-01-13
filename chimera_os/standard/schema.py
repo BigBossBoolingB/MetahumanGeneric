@@ -9,6 +9,7 @@ class Mode(str, Enum):
     AUTONOMOUS_DAEMON = "AUTONOMOUS_DAEMON"
     MANUAL_OVERRIDE = "MANUAL_OVERRIDE"
     SLEEP_MODE = "SLEEP_MODE"
+    SAFE_MODE = "SAFE_MODE"  # Added for ethical fail-safe
 
 class HealthStatus(str, Enum):
     ACTIVE = "ACTIVE"
@@ -17,6 +18,7 @@ class HealthStatus(str, Enum):
     CRITICAL = "CRITICAL"
     OFFLINE = "OFFLINE"
     ONLINE = "ONLINE"
+    LOCKED = "LOCKED"  # Added for ethical violation response
 
 class Role(str, Enum):
     LEADER = "LEADER"
@@ -26,6 +28,7 @@ class SwarmFormation(str, Enum):
     TRIANGLE_PERIMETER = "TRIANGLE_PERIMETER"
     DIAMOND = "DIAMOND"
     LINE = "LINE"
+    SCATTER_SAFE = "SCATTER_SAFE"
 
 class ConsensusAlgorithm(str, Enum):
     BLOOM_MERKLE_PROOF = "BLOOM_MERKLE_PROOF"
@@ -114,12 +117,29 @@ class ActiveMission(BaseModel):
     priority: int
     directives: List[str]
 
+class Safeguard(BaseModel):
+    id: str
+    rule: str
+    level: Literal["UNIVERSAL", "OPERATIONAL"]
+    checksum: str # Simple hash to verify integrity
+
+class EthicalProtocol(BaseModel):
+    """
+    Immutable Ethical Safeguards.
+    The 'frozen=True' config prevents modification after instantiation in Pydantic V2.
+    """
+    version: str
+    active_protocols: List[Safeguard]
+
+    model_config = {"frozen": True}
+
 class MetahumanOSState(BaseModel):
     """
     The Universal Standard Definition for the Metahuman OS.
     This schema defines the exact structure expected for any compliant system.
     """
     system_identity: SystemIdentity
+    ethical_protocol: EthicalProtocol
     infrastructure_health: InfrastructureHealth
     swarm_topology: SwarmTopology
     cognitive_state: CognitiveState
